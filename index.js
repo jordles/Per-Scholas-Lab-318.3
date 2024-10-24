@@ -1,14 +1,17 @@
+require('dotenv').config()
 const express = require("express");
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const error = require('./utilities/error');
+const path = require('path');
 
 app.listen(PORT, () => {
   console.log(`Listening to port: ${PORT}`)
 })
 
-//import our data
-const users = require('./data/users');
-const posts = require('./data/posts');
+//import our data (routers)
+const usersRouter = require('./routes/users');
+const postsRouter = require('./routes/posts');
 
 //middleware; must come before the route handlers because the handlers can end the request-response cycle (so the middleware will never run)
 app.use(express.json()); //parse any json data in the request body
@@ -30,105 +33,123 @@ ${time.toLocaleTimeString()}: Received a ${req.method} request to ${req.url}.`
   next();
 });
 
-//users
-app.get('/api/users', (req, res) => {
-  res.json(users)
+// Valid API Keys.
+const apiKeys = JSON.parse(process.env["API-KEYS"])
+
+// New middleware to check for API keys!
+app.use('/api', (req, res, next) => {
+  const key = req.query["api-key"]; //name of our query parameter is api-key
+  console.log(apiKeys);
+  console.log(key);
+  console.log(apiKeys.includes(key));
+  if(!key) return res.status(400).json({error: "API Key Required"});
+  if(!apiKeys.includes(key)) return res.status(401).json({error: "Invalid API Key"});
+
+  req.key = key; // this will be used in the next middleware; store key for route use
+  next();
 })
 
-app.get('/api/users/:id', (req, res, next) => {
-  const foundUser = users.find(user => user.id == req.params.id);
-  if(foundUser) res.json(foundUser);
-  else next() //goes to our middleware that will send a 404
-  /* else res.json({error: "User Not Found"}) */
+
+// router set up
+app.use('/api/users', usersRouter);
+app.use('/api/posts', postsRouter);
+
+// New User form; we dont use /api because this user form is not locked behind an API key
+app.get("/users/new", (req, res) => {
+  // only works for GET and POST request by default
+  // if you are trying to send a PATCH, PUT, DELETE, etc. Look into method-override package 
+  res.send(`
+    <div>
+      <h1>Create a User</h1>
+      <form action="/api/users?api-key=${apiKeys[0]}" method="POST">
+        Name: <input type="text" name="name" />
+        <br />
+        Username: <input type="text" name="username"/>
+        <br />
+        Email: <input type="text" name="email" />
+        <br />
+        <input type="submit" value="Create User" />
+      </form>
+    </div>
+    `)
 })
 
-app.post('/api/users', (req, res) => {
-  if(req.body.name && req.body.username && req.body.email){
-    if(users.find(user => user.username == req.body.username)) return res.json({error: "Username Already Taken"})
-    const user = {
-      id: users[users.length-1].id + 1,
-      name: req.body.name,
-      username: req.body.username,
-      email: req.body.email
-    }
-    users.push(user);
-    res.json(user);
-  }
-  else res.json({error: "Insufficient Data"});
+// Download Example 
+app.use(express.static('./data'))
+
+app.get("/get-data", (req, res) => {
+  res.send(`
+    <div>
+      <h1>Download Data</h1>
+      <form action="/download/users.js">
+        <button>Download Users data</button>
+      </form>
+
+      <form action="/download/posts.js">
+        <button>Download Posts data</button>
+      </form>
+    </div>
+    `)
 })
 
-app.patch('/api/users/:id', (req, res) => {
-  const user = users.find((u, i) => (u.id == req.params.id))
-  if(user) {
-    for(const key in req.body) {
-      user[key] = req.body[key] //whatever we placed in the req.body we will overwrite the existing user[key]
-    }
-    res.json(user)
-  }
-  else res.json({error: "User Not Found"})
+app.get("/download/:filename", (req, res) => {
+  res.download(path.join(__dirname, 'data', req.params.filename))
 })
 
-app.delete('/api/users/:id', (req, res) => {
-  const user = users.findIndex(user => user.id == req.params.id)
-  if(user !== -1) {
-    const [deletedUser] = users.splice(user,1); //remove the user; recall that splice returns an array
-    res.json(deletedUser)
-  }
-  else res.json({error: "User Not Found"});
-})
+// Adding some HATEOAS links.
+app.get("/", (req, res) => {
+  res.json({
+    links: [
+      {
+        href: "/api",
+        rel: "api",
+        type: "GET",
+      },
+    ],
+  });
+});
 
-//posts
-app.get('/api/posts', (req, res) => {
-  res.json(posts);
-})
-
-app.get('/api/posts/:id', (req, res, next) => {
-  const foundPost = posts.find(post => post.id == req.params.id)
-  if(foundPost) res.json(foundPost)
-  else next()
-  /* else res.json({error: "Post Not Found"}) */
-})
-
-app.post('/api/posts', (req, res) => {
-  if (req.body.userId && req.body.title && req.body.content){
-    const post = {
-      id: posts[posts.length - 1].id + 1,
-      userId:  req.body.userId,
-      title: req.body.title,
-      content: req.body.content
-    }
-
-    posts.push(post)
-    res.json(post)
-  }
-  else res.json({error: "Insufficient Data"});
-})
-
-app.patch('/api/posts/:id', (req, res) => {
-  const post = posts.find(post => post.id == req.params.id)
-  if(post){
-    for(const key in req.body){
-      post[key] = req.body[key]; //whatever we placed in the req.body we will overwrite the existing user[key]
-    }
-    res.json(post);
-  }
-  else res.json({error: "Post Not Found"})
-})
-
-app.delete('/api/posts/:id', (req, res) => {
-  const post = posts.findIndex(user => user.id == req.params.id)
-  if(post !== -1) {
-    const [deletedPost] = posts.splice(post,1); //remove the post; recall that splice returns an array
-    res.json(deletedPost)
-  }
-  else res.json({error: "Post Not Found"});
-})
+// Adding some HATEOAS links.
+app.get("/api", (req, res) => {
+  res.json({
+    links: [
+      {
+        href: "api/users",
+        rel: "users",
+        type: "GET",
+      },
+      {
+        href: "api/users",
+        rel: "users",
+        type: "POST",
+      },
+      {
+        href: "api/posts",
+        rel: "posts",
+        type: "GET",
+      },
+      {
+        href: "api/posts",
+        rel: "posts",
+        type: "POST",
+      },
+    ],
+  });
+});
 
 //default
 app.get('/', (req, res) => {
   res.send("Nothing here...")
 })
 
+//404 error handler
 app.use((req, res, next) => {
-  res.status(404).json({error: "Resource Not Found"})
+  next(error(404, "Resource Not Found"))
+  //res.status(404).json({error: 'Resource Not Found'})
+})
+
+//default error handler
+app.use((err, req, res, next) => {
+  res.status(err.status || 500);
+  res.json({ error: err.message });
 })
