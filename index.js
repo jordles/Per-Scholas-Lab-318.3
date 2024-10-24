@@ -14,6 +14,22 @@ const posts = require('./data/posts');
 app.use(express.json()); //parse any json data in the request body
 app.use(express.urlencoded({extended: true})); //parse any urlencoded data in the request body
 
+// New logging middleware to help us keep track of
+// requests during testing!
+app.use((req, res, next) => {
+  const time = new Date();
+
+  console.log(
+    `-----
+${time.toLocaleTimeString()}: Received a ${req.method} request to ${req.url}.`
+  );
+  if (Object.keys(req.body).length > 0) {
+    console.log("Containing the data:");
+    console.log(`${JSON.stringify(req.body)}`);
+  }
+  next();
+});
+
 //users
 app.get('/api/users', (req, res) => {
   res.json(users)
@@ -71,6 +87,41 @@ app.get('/api/posts/:id', (req, res, next) => {
   if(foundPost) res.json(foundPost)
   else next()
   /* else res.json({error: "Post Not Found"}) */
+})
+
+app.post('/api/posts', (req, res) => {
+  if (req.body.userId && req.body.title && req.body.content){
+    const post = {
+      id: posts[posts.length - 1].id + 1,
+      userId:  req.body.userId,
+      title: req.body.title,
+      content: req.body.content
+    }
+
+    posts.push(post)
+    res.json(post)
+  }
+  else res.json({error: "Insufficient Data"});
+})
+
+app.patch('/api/posts/:id', (req, res) => {
+  const post = posts.find(post => post.id == req.params.id)
+  if(post){
+    for(const key in req.body){
+      post[key] = req.body[key]; //whatever we placed in the req.body we will overwrite the existing user[key]
+    }
+    res.json(post);
+  }
+  else res.json({error: "Post Not Found"})
+})
+
+app.delete('/api/posts/:id', (req, res) => {
+  const post = posts.findIndex(user => user.id == req.params.id)
+  if(post !== -1) {
+    const [deletedPost] = posts.splice(post,1); //remove the post; recall that splice returns an array
+    res.json(deletedPost)
+  }
+  else res.json({error: "Post Not Found"});
 })
 
 //default
