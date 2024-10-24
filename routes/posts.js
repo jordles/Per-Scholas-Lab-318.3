@@ -6,18 +6,28 @@ const error = require('../utilities/error');
 /* -------------------------------------------------------------------------- */
 /*                                    POSTS                                   */
 /* -------------------------------------------------------------------------- */
-router.get('/', (req, res) => {
+router.get('/', (req, res, next) => {
+  //retrieves all posts by a user with the specified postId
+  if(req.query.userId){
+    const userId = posts.find(post => post.userId == req.query.userId); // see if our userId exists in the posts data. 
+    if (userId) {
+      const filteredPosts = posts.filter(post => post.userId == req.query.userId);
+      if(filteredPosts) return res.json(filteredPosts);
+    }
+    else next()
+  }
+  else{
+    //HATEOAS
+    const links = [
+      {
+        href: "posts/:id",
+        rel: ":id",
+        type: "GET",
+      },
+    ];
 
-  //HATEOAS
-  const links = [
-    {
-      href: "posts/:id",
-      rel: ":id",
-      type: "GET",
-    },
-  ];
-
-  res.json({posts, links});
+    res.json({posts, links});
+  }
 })
 
 router.get('/:id', (req, res, next) => {

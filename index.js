@@ -12,6 +12,7 @@ app.listen(PORT, () => {
 //import our data (routers)
 const usersRouter = require('./routes/users');
 const postsRouter = require('./routes/posts');
+const commentsRouter = require('./routes/comments');
 
 //middleware; must come before the route handlers because the handlers can end the request-response cycle (so the middleware will never run)
 app.use(express.json()); //parse any json data in the request body
@@ -34,7 +35,7 @@ ${time.toLocaleTimeString()}: Received a ${req.method} request to ${req.url}.`
 });
 
 // Valid API Keys.
-const apiKeys = JSON.parse(process.env["API-KEYS"])
+const apiKeys = JSON.parse(process.env["API-KEYS"]) //we have to parse this because it is a string
 
 // New middleware to check for API keys!
 app.use('/api', (req, res, next) => {
@@ -53,6 +54,7 @@ app.use('/api', (req, res, next) => {
 // router set up
 app.use('/api/users', usersRouter);
 app.use('/api/posts', postsRouter);
+app.use('/api/comments', commentsRouter);
 
 // New User form; we dont use /api because this user form is not locked behind an API key
 app.get("/users/new", (req, res) => {

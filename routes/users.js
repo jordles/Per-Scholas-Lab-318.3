@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const users = require('../data/users');
+const posts = require('../data/posts');
 const error = require('../utilities/error');
 /* -------------------------------------------------------------------------- */
 /*                                    USERS                                   */
@@ -38,6 +39,13 @@ router.get('/:id', (req, res, next) => {
   if(user) res.json({user, links})
   else next() //goes to our middleware that will send a 404
   /* else res.json({error: "User Not Found"}) */
+})
+
+//retrieve all posts by a user with the specified id
+router.get('/:id/posts', (req, res, next) => {
+  const user = users.find(user => user.id == req.params.id);
+  if(user) res.json(posts.filter(post => post.userId == user.id))
+  else next() //res.json({error: "User Not Found"})
 })
 
 router.post('/', (req, res, next) => {
