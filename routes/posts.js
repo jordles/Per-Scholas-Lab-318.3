@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const posts = require('../data/posts');
+const comments = require('../data/comments');
 const error = require('../utilities/error');
 
 /* -------------------------------------------------------------------------- */
@@ -49,6 +50,24 @@ router.get('/:id', (req, res, next) => {
   /* else res.json({error: "Post Not Found"}) */
 })
 
+router.get('/:id/comments', (req, res, next) => {
+
+  const post = posts.find(post => post.id == req.params.id)
+  if(post) {
+    const filteredComments = comments.filter(comment => comment.postId == req.params.id) 
+    if(filteredComments.length === 0) res.send('There are no comments for this post')
+    else{
+      if(req.query.userId){ //search for the correct userId within the comments with the postId.
+        const comment = comments.find(comment => comment.userId == req.query.userId);
+        if(comment) return res.json(filteredComments.filter(comment => comment.userId == req.query.userId))
+        else return next()
+      }
+      res.json(filteredComments)
+    }
+  }
+  else next()
+})
+
 router.post('/', (req, res, next) => {
   if (req.body.userId && req.body.title && req.body.content){
     const post = {
@@ -76,7 +95,7 @@ router.patch('/:id', (req, res, next) => {
 })
 
 router.delete('/:id', (req, res, next) => {
-  const post = posts.findIndex(user => user.id == req.params.id)
+  const post = posts.findIndex(post => post.id == req.params.id)
   if(post !== -1) {
     const [deletedPost] = posts.splice(post,1); //remove the post; recall that splice returns an array
     res.json(deletedPost)

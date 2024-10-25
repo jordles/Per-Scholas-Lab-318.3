@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const users = require('../data/users');
 const posts = require('../data/posts');
+const comments = require('../data/comments');
 const error = require('../utilities/error');
 /* -------------------------------------------------------------------------- */
 /*                                    USERS                                   */
@@ -41,6 +42,23 @@ router.get('/:id', (req, res, next) => {
   /* else res.json({error: "User Not Found"}) */
 })
 
+router.get('/:id/comments', (req, res, next) => {
+  
+  const user = users.find(user => user.id == req.params.id);
+  if(user) {
+    const filteredComments = comments.filter(comment => comment.userId == user.id)
+    if(filteredComments.length === 0) res.send('There are no comments for this user')
+    else{
+      if(req.query.postId){ //search for the correct userId within the comments with the postId.
+        const comment = comments.find(comment => comment.postId == req.query.postId);
+        if(comment) return res.json(filteredComments.filter(comment => comment.postId == req.query.postId))
+        else return next()
+      }
+      res.json(filteredComments);
+    }
+  }
+  else next()
+})
 //retrieve all posts by a user with the specified id
 router.get('/:id/posts', (req, res, next) => {
   const user = users.find(user => user.id == req.params.id);

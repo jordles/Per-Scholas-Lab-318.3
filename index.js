@@ -40,9 +40,6 @@ const apiKeys = JSON.parse(process.env["API-KEYS"]) //we have to parse this beca
 // New middleware to check for API keys!
 app.use('/api', (req, res, next) => {
   const key = req.query["api-key"]; //name of our query parameter is api-key
-  console.log(apiKeys);
-  console.log(key);
-  console.log(apiKeys.includes(key));
   if(!key) return res.status(400).json({error: "API Key Required"});
   if(!apiKeys.includes(key)) return res.status(401).json({error: "Invalid API Key"});
 
